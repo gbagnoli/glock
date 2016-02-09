@@ -64,11 +64,7 @@ type RedisLock struct {
 // NewRedisLockClient return a new RedisLockClient given the provided RedisLockOptions
 func NewRedisLockClient(opts RedisLockOptions) (*RedisLockClient, error) {
 	if opts.ClientID == "" {
-		id, err := UUID()
-		if err != nil {
-			return nil, err
-		}
-		opts.ClientID = id
+		opts.ClientID = UUID()
 	}
 	if opts.Network == "" {
 		opts.Network = "tcp"

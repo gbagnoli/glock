@@ -1,12 +1,8 @@
 package glock
 
-import "github.com/nu7hatch/gouuid"
+import "github.com/satori/go.uuid"
 
 // UUID returns a new V4 UUID string
-func UUID() (string, error) {
-	u, err := uuid.NewV4()
-	if err != nil {
-		return "", err
-	}
-	return u.String(), nil
+func UUID() string {
+	return uuid.NewV4().String()
 }

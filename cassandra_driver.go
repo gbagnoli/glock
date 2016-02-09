@@ -76,10 +76,7 @@ func NewCassandraLockClient(opts CassandraOptions) (*CassandraClient, error) {
 		return nil, err
 	}
 
-	id, err := UUID()
-	if err != nil {
-		return nil, err
-	}
+	id := UUID()
 
 	c.hosts = opts.Hosts
 	c.keyspace = opts.KeySpace
