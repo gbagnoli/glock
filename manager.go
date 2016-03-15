@@ -7,7 +7,7 @@ type LockManager struct {
 	defaultTTL time.Duration
 	client     Client
 	locks      map[string]Lock
-	hb         map[string]chan bool
+	hb         map[string]chan struct{}
 }
 
 // NewLockManager returns a new LockManager for the given client.
@@ -16,7 +16,7 @@ func NewLockManager(client Client, defaultTTL time.Duration) *LockManager {
 		defaultTTL,
 		client,
 		make(map[string]Lock),
-		make(map[string]chan bool),
+		make(map[string]chan struct{}),
 	}
 }
 
@@ -102,7 +102,7 @@ func (m *LockManager) ReleaseAll() map[string]error {
 	return results
 }
 
-func heartbeat(client Client, lockName string, ttl time.Duration, control chan bool) {
+func heartbeat(client Client, lockName string, ttl time.Duration, control chan struct{}) {
 	client.Reconnect()
 	defer client.Close()
 	freq := time.Duration(ttl / 2)
@@ -123,7 +123,12 @@ func heartbeat(client Client, lockName string, ttl time.Duration, control chan b
 				start := time.Now()
 				err := lock.RefreshTTL(ttl)
 				if err != nil {
-					panic(err)
+					select {
+					case control <- struct{}{}:
+						return
+					case <-time.After(sleeptime):
+						panic(err)
+					}
 				}
 				s := sleeptime - (time.Now().Sub(start))
 				time.Sleep(s)
@@ -136,24 +141,27 @@ func heartbeat(client Client, lockName string, ttl time.Duration, control chan b
 	}
 }
 
-// StartHeartbeat starts a goroutine in the backgroud that will refresh the lock
-// The lock will be refreshed every ttl/2 or whichever is greater.
-// The background goroutine will panic() if the lock cannot be refreshed for any reason
-// The background goroutine will run forever until StopHeartbeat is called or the lock released.
-func (m *LockManager) StartHeartbeat(lockName string) error {
+// StartHeartbeat starts a goroutine in the backgroud that will refresh the
+// lock The lock will be refreshed every ttl/2 or whichever is greater.  The
+// background goroutine will panic() if the lock cannot be refreshed for any
+// reason The background goroutine will run forever until StopHeartbeat is
+// called or the lock released.  It will return a channel to signal if the lock
+// cannot be refreshed during heartbeats (before panicking)
+func (m *LockManager) StartHeartbeat(lockName string) (<-chan struct{}, error) {
 	info, err := m.Info(lockName)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	m.hb[lockName] = make(chan bool)
+	m.hb[lockName] = make(chan struct{})
 	go heartbeat(m.client, lockName, info.TTL, m.hb[lockName])
-	return nil
+	return m.hb[lockName], nil
 }
 
 // StopHeartbeat will stop the background gororoutine, if any, that is heartbeating the given lock
 func (m *LockManager) StopHeartbeat(lockName string) {
 	if c, ok := m.hb[lockName]; ok {
-		c <- true
+		c <- struct{}{}
+		close(c)
 		delete(m.hb, lockName)
 	}
 }
