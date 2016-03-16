@@ -87,6 +87,19 @@ func NewCassandraLockClient(opts CassandraOptions) (*CassandraClient, error) {
 	return &c, nil
 }
 
+// Clone returns a copy of the currenct client
+func (c *CassandraClient) Clone() Client {
+	return &CassandraClient{
+		cluster:     nil,
+		hosts:       c.hosts,
+		keyspace:    c.keyspace,
+		table:       c.table,
+		clientID:    c.clientID,
+		session:     nil,
+		consistency: c.consistency,
+	}
+}
+
 // Reconnect reconnects to cassandra, or connects if not connected
 func (c *CassandraClient) Reconnect() error {
 	c.Close()

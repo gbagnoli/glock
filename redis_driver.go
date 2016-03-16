@@ -85,6 +85,14 @@ func NewRedisLockClient(opts RedisLockOptions) (*RedisLockClient, error) {
 	return &c, nil
 }
 
+// Clone returns a disconnected copy of the currenct client
+func (c *RedisLockClient) Clone() Client {
+	return &RedisLockClient{
+		opts: c.opts,
+		conn: nil,
+	}
+}
+
 // Close closes the connecton to redis
 func (c *RedisLockClient) Close() {
 	if c.conn != nil {

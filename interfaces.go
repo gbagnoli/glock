@@ -22,6 +22,9 @@ type Client interface {
 
 	// NewLock returns a new lock object
 	NewLock(name string) Lock
+
+	// Clone returns a disconnected copy of the client
+	Clone() Client
 }
 
 // Lock represent a lock in the store

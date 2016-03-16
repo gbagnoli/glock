@@ -176,7 +176,7 @@ func (m *LockManager) StartHeartbeat(lockName string) (<-chan struct{}, error) {
 	m.Logger.Printf("client %s: Starting heartbeats for lock '%s' every %v", m.client.ID(),
 		lockName, info.TTL/2)
 	m.hb[lockName] = make(chan struct{})
-	go heartbeat(m.client, m.Logger, lockName, info.TTL, m.hb[lockName])
+	go heartbeat(m.client.Clone(), m.Logger, lockName, info.TTL, m.hb[lockName])
 	return m.hb[lockName], nil
 }
 
