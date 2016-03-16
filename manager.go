@@ -1,9 +1,14 @@
 package glock
 
-import "time"
+import (
+	"io/ioutil"
+	"log"
+	"time"
+)
 
 // LockManager manages all the locks for a single client
 type LockManager struct {
+	Logger     *log.Logger
 	defaultTTL time.Duration
 	client     Client
 	locks      map[string]Lock
@@ -11,8 +16,11 @@ type LockManager struct {
 }
 
 // NewLockManager returns a new LockManager for the given client.
+// By default, logging is sent to /dev/null. You must call SetOutput() on
+// the Logger instance if you want logging to be sent somewhere.
 func NewLockManager(client Client, defaultTTL time.Duration) *LockManager {
 	return &LockManager{
+		log.New(ioutil.Discard, "glock: ", log.LstdFlags|log.LUTC),
 		defaultTTL,
 		client,
 		make(map[string]Lock),
@@ -44,8 +52,11 @@ func (m *LockManager) TryAcquireTTL(lockName string, ttl time.Duration) error {
 	lock := m.client.NewLock(lockName)
 	err := lock.Acquire(ttl)
 	if err != nil {
+		m.Logger.Printf("client %s: Cannot acquire lock '%s': %s",
+			m.client.ID(), lockName, err.Error())
 		return err
 	}
+	m.Logger.Printf("client %s: Acquired lock '%s' for %v", m.client.ID(), lockName, ttl)
 	m.locks[lockName] = lock
 	return nil
 }
@@ -74,6 +85,8 @@ func (m *LockManager) AcquireTTL(lockName string, ttl time.Duration, maxWait tim
 		}
 		waited = waited + info.TTL
 		if waited > maxWait {
+			m.Logger.Printf("client %s: Cannot acquire lock '%s' after %v",
+				m.client.ID(), lockName, waited)
 			return ErrLockHeldByOtherClient
 		}
 		time.Sleep(info.TTL)
@@ -83,6 +96,7 @@ func (m *LockManager) AcquireTTL(lockName string, ttl time.Duration, maxWait tim
 // Release releases a lock with the given name. The lock must be held by the current manager.
 // Any eventual heartbeating will be stopped as well.
 func (m *LockManager) Release(lockName string) error {
+	m.Logger.Printf("client %s: Releasing lock '%s'", m.client.ID(), lockName)
 	err := m.locks[lockName].Release()
 	m.StopHeartbeat(lockName)
 	delete(m.locks, lockName)
@@ -102,7 +116,7 @@ func (m *LockManager) ReleaseAll() map[string]error {
 	return results
 }
 
-func heartbeat(client Client, lockName string, ttl time.Duration, control chan struct{}) {
+func heartbeat(client Client, logger *log.Logger, lockName string, ttl time.Duration, control chan struct{}) {
 	client.Reconnect()
 	defer client.Close()
 	freq := time.Duration(ttl / 2)
@@ -123,6 +137,8 @@ func heartbeat(client Client, lockName string, ttl time.Duration, control chan s
 				start := time.Now()
 				err := lock.RefreshTTL(ttl)
 				if err != nil {
+					logger.Printf("client %s: heartbeat -- FATAL cannot refresh lock '%s': %s",
+						client.ID(), lockName, err.Error())
 					select {
 					case control <- struct{}{}:
 						return
@@ -130,6 +146,8 @@ func heartbeat(client Client, lockName string, ttl time.Duration, control chan s
 						panic(err)
 					}
 				}
+				logger.Printf("client %s: heartbeat -- refreshed lock '%s' for %v",
+					client.ID(), lockName, ttl)
 				s := sleeptime - (time.Now().Sub(start))
 				time.Sleep(s)
 				enlapsed = s
@@ -152,14 +170,18 @@ func (m *LockManager) StartHeartbeat(lockName string) (<-chan struct{}, error) {
 	if err != nil {
 		return nil, err
 	}
+	m.Logger.Printf("client %s: Starting heartbeats for lock '%s' every %v", m.client.ID(),
+		lockName, info.TTL/2)
 	m.hb[lockName] = make(chan struct{})
-	go heartbeat(m.client, lockName, info.TTL, m.hb[lockName])
+	go heartbeat(m.client, m.Logger, lockName, info.TTL, m.hb[lockName])
 	return m.hb[lockName], nil
 }
 
 // StopHeartbeat will stop the background gororoutine, if any, that is heartbeating the given lock
 func (m *LockManager) StopHeartbeat(lockName string) {
 	if c, ok := m.hb[lockName]; ok {
+		m.Logger.Printf("client %s: Stopping heartbeats for lock '%s'", m.client.ID(),
+			lockName)
 		c <- struct{}{}
 		close(c)
 		delete(m.hb, lockName)
