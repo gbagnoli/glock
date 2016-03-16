@@ -194,17 +194,22 @@ func (l *RedisLock) Refresh() error {
 
 // Info returns information about the lock.
 func (l *RedisLock) Info() (*LockInfo, error) {
+	var owner string
+	var expire int
+
+	l.client.conn.Send("MULTI")
 	l.client.conn.Send("GET", l.key())
 	l.client.conn.Send("PTTL", l.key())
-	l.client.conn.Flush()
-	owner, err := redis.String(l.client.conn.Receive())
+	reply, err := redis.Values(l.client.conn.Do("EXEC"))
+
 	if err == redis.ErrNil {
 		return &LockInfo{l.name, false, "", time.Duration(0)}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	expire, err := redis.Int(l.client.conn.Receive())
+
+	_, err = redis.Scan(reply, &owner, &expire)
 	if err != nil {
 		return nil, err
 	}
