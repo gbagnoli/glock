@@ -32,8 +32,8 @@ var (
 // DialFunc is a function prototype that matches redigo/redis.Dial signature.
 type DialFunc func(network, address string, options ...redis.DialOption) (redis.Conn, error)
 
-// RedisLockOptions represent options to connect to redis
-type RedisLockOptions struct {
+// RedisOptions represent options to connect to redis
+type RedisOptions struct {
 	// Network, i.e. 'tcp'
 	Network string
 	// Address, i.e. 'localhost:6379'
@@ -51,7 +51,7 @@ type RedisLockOptions struct {
 // RedisClient implements the Client interface to manage locks in redis
 type RedisClient struct {
 	conn redis.Conn
-	opts RedisLockOptions
+	opts RedisOptions
 }
 
 // RedisLock implements the Lock interface for locks in the redis store
@@ -61,8 +61,8 @@ type RedisLock struct {
 	client *RedisClient
 }
 
-// NewRedisClient return a new RedisClient given the provided RedisLockOptions
-func NewRedisClient(opts RedisLockOptions) (*RedisClient, error) {
+// NewRedisClient return a new RedisClient given the provided RedisOptions
+func NewRedisClient(opts RedisOptions) (*RedisClient, error) {
 	if opts.ClientID == "" {
 		opts.ClientID = UUID()
 	}
