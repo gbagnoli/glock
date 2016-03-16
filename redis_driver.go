@@ -48,8 +48,8 @@ type RedisLockOptions struct {
 	DialFunc DialFunc
 }
 
-// RedisLockClient implements the Client interface to manage locks in redis
-type RedisLockClient struct {
+// RedisClient implements the Client interface to manage locks in redis
+type RedisClient struct {
 	conn redis.Conn
 	opts RedisLockOptions
 }
@@ -58,11 +58,11 @@ type RedisLockClient struct {
 type RedisLock struct {
 	name   string
 	ttl    time.Duration
-	client *RedisLockClient
+	client *RedisClient
 }
 
-// NewRedisLockClient return a new RedisLockClient given the provided RedisLockOptions
-func NewRedisLockClient(opts RedisLockOptions) (*RedisLockClient, error) {
+// NewRedisClient return a new RedisClient given the provided RedisLockOptions
+func NewRedisClient(opts RedisLockOptions) (*RedisClient, error) {
 	if opts.ClientID == "" {
 		opts.ClientID = UUID()
 	}
@@ -77,7 +77,7 @@ func NewRedisLockClient(opts RedisLockOptions) (*RedisLockClient, error) {
 	if opts.DialFunc == nil {
 		opts.DialFunc = redis.Dial
 	}
-	c := RedisLockClient{nil, opts}
+	c := RedisClient{nil, opts}
 	err := c.Reconnect()
 	if err != nil {
 		return nil, err
@@ -86,22 +86,22 @@ func NewRedisLockClient(opts RedisLockOptions) (*RedisLockClient, error) {
 }
 
 // Clone returns a disconnected copy of the currenct client
-func (c *RedisLockClient) Clone() Client {
-	return &RedisLockClient{
+func (c *RedisClient) Clone() Client {
+	return &RedisClient{
 		opts: c.opts,
 		conn: nil,
 	}
 }
 
 // Close closes the connecton to redis
-func (c *RedisLockClient) Close() {
+func (c *RedisClient) Close() {
 	if c.conn != nil {
 		c.conn.Close()
 	}
 }
 
 // Reconnect reconnects to redis, or connects if not connected
-func (c *RedisLockClient) Reconnect() error {
+func (c *RedisClient) Reconnect() error {
 	c.Close()
 	conn, err := c.opts.DialFunc(c.opts.Network, c.opts.Address, c.opts.DialOptions...)
 	if err != nil {
@@ -116,12 +116,12 @@ func (c *RedisLockClient) Reconnect() error {
 }
 
 // SetID sets the ID for the current client
-func (c *RedisLockClient) SetID(id string) {
+func (c *RedisClient) SetID(id string) {
 	c.opts.ClientID = id
 }
 
 // ID returns the current client ID
-func (c *RedisLockClient) ID() string {
+func (c *RedisClient) ID() string {
 	return c.opts.ClientID
 }
 
@@ -130,7 +130,7 @@ func (l *RedisLock) key() string {
 }
 
 // NewLock creates a new Lock. Lock is not automatically acquired.
-func (c *RedisLockClient) NewLock(name string) Lock {
+func (c *RedisClient) NewLock(name string) Lock {
 	return &RedisLock{
 		name:   name,
 		ttl:    time.Duration(0),

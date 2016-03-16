@@ -43,8 +43,8 @@ func main() {
 		c2, err = glock.NewCassandraLockClient(opts)
 	case "redis":
 		opts := glock.RedisLockOptions{"tcp", "localhost:6379", "", "myns", nil, nil}
-		c, err = glock.NewRedisLockClient(opts)
-		c2, err = glock.NewRedisLockClient(opts)
+		c, err = glock.NewRedisClient(opts)
+		c2, err = glock.NewRedisClient(opts)
 	default:
 		fmt.Println("Invalid driver", *tp)
 		os.Exit(2)
