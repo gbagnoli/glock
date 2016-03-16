@@ -196,9 +196,9 @@ func (l *CassandraLock) RefreshTTL(ttl time.Duration) error {
 // Refresh extends the lock by extending the TTL in the store.
 // It returns an error if the lock is not owned by the current client
 func (l *CassandraLock) Refresh() error {
-	var name, owner string
+	var name string
 	query := fmt.Sprintf(refreshQ, l.client.keyspace, l.client.table, int(l.ttl.Seconds()))
-	applied, err := l.client.session.Query(query, l.owner, l.name, l.owner).ScanCAS(&name, &owner)
+	applied, err := l.client.session.Query(query, l.owner, l.name, l.owner).ScanCAS(&name)
 	if err != nil {
 		return err
 	}
