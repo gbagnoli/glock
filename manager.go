@@ -96,10 +96,13 @@ func (m *LockManager) AcquireTTL(lockName string, ttl time.Duration, maxWait tim
 // Release releases a lock with the given name. The lock must be held by the current manager.
 // Any eventual heartbeating will be stopped as well.
 func (m *LockManager) Release(lockName string) error {
+	var err error
 	m.Logger.Printf("client %s: Releasing lock '%s'", m.client.ID(), lockName)
-	err := m.locks[lockName].Release()
-	m.StopHeartbeat(lockName)
-	delete(m.locks, lockName)
+	if lock, ok := m.locks[lockName]; ok {
+		m.StopHeartbeat(lockName)
+		err = lock.Release()
+		delete(m.locks, lockName)
+	}
 	return err
 }
 
