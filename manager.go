@@ -28,6 +28,11 @@ func NewLockManager(client Client, defaultTTL time.Duration) *LockManager {
 	}
 }
 
+// Client returns the current lock client in use
+func (m *LockManager) Client() Client {
+	return m.client
+}
+
 // TryAcquire tries to acquire the lock with the given name using the default TTL for the manager
 // it will return immediately if the lock cannot be acquired
 func (m *LockManager) TryAcquire(lockName string) error {
