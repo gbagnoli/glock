@@ -77,7 +77,9 @@ func (m *LockManager) Acquire(lockName string, maxWait time.Duration) error {
 func (m *LockManager) AcquireTTL(lockName string, ttl time.Duration, maxWait time.Duration) error {
 	var waited time.Duration
 	lock := m.client.NewLock(lockName)
+
 	for {
+		init := time.Now()
 		err := m.TryAcquireTTL(lockName, ttl)
 		if err == nil {
 			return nil
@@ -89,13 +91,20 @@ func (m *LockManager) AcquireTTL(lockName string, ttl time.Duration, maxWait tim
 		if err != nil {
 			return err
 		}
-		waited = waited + info.TTL
-		if waited > maxWait {
+
+		if waited >= maxWait {
 			m.Logger.Printf("client %s: Cannot acquire lock '%s' after %v",
 				m.client.ID(), lockName, waited)
 			return ErrLockHeldByOtherClient
 		}
-		time.Sleep(info.TTL)
+
+		wait := info.TTL - time.Since(init)
+		if waited+wait > maxWait {
+			wait = maxWait - waited
+		}
+
+		time.Sleep(wait)
+		waited = waited + wait
 	}
 }
 
