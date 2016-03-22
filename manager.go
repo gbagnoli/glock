@@ -1,6 +1,7 @@
 package glock
 
 import (
+	"errors"
 	"io/ioutil"
 	"log"
 	"time"
@@ -12,7 +13,7 @@ type LockManager struct {
 	defaultTTL time.Duration
 	client     Client
 	locks      map[string]Lock
-	hb         map[string]chan struct{}
+	hb         map[string]chan error
 }
 
 // NewLockManager returns a new LockManager for the given client.
@@ -24,7 +25,7 @@ func NewLockManager(client Client, defaultTTL time.Duration) *LockManager {
 		defaultTTL,
 		client,
 		make(map[string]Lock),
-		make(map[string]chan struct{}),
+		make(map[string]chan error),
 	}
 }
 
@@ -124,7 +125,7 @@ func (m *LockManager) ReleaseAll() map[string]error {
 	return results
 }
 
-func heartbeat(client Client, logger *log.Logger, lockName string, ttl time.Duration, control chan struct{}) {
+func heartbeat(client Client, logger *log.Logger, lockName string, ttl time.Duration, control chan error) {
 	client.Reconnect()
 	defer client.Close()
 	freq := time.Duration(ttl / 2)
@@ -148,7 +149,7 @@ func heartbeat(client Client, logger *log.Logger, lockName string, ttl time.Dura
 					logger.Printf("client %s: heartbeat -- FATAL cannot refresh lock '%s': %s",
 						client.ID(), lockName, err.Error())
 					select {
-					case control <- struct{}{}:
+					case control <- err:
 						return
 					case <-time.After(sleeptime):
 						panic(err)
@@ -173,14 +174,14 @@ func heartbeat(client Client, logger *log.Logger, lockName string, ttl time.Dura
 // reason The background goroutine will run forever until StopHeartbeat is
 // called or the lock released.  It will return a channel to signal if the lock
 // cannot be refreshed during heartbeats (before panicking)
-func (m *LockManager) StartHeartbeat(lockName string) (<-chan struct{}, error) {
+func (m *LockManager) StartHeartbeat(lockName string) (<-chan error, error) {
 	info, err := m.Info(lockName)
 	if err != nil {
 		return nil, err
 	}
 	m.Logger.Printf("client %s: Starting heartbeats for lock '%s' every %v", m.client.ID(),
 		lockName, info.TTL/2)
-	m.hb[lockName] = make(chan struct{})
+	m.hb[lockName] = make(chan error)
 	go heartbeat(m.client.Clone(), m.Logger, lockName, info.TTL, m.hb[lockName])
 	return m.hb[lockName], nil
 }
@@ -190,7 +191,7 @@ func (m *LockManager) StopHeartbeat(lockName string) {
 	if c, ok := m.hb[lockName]; ok {
 		m.Logger.Printf("client %s: Stopping heartbeats for lock '%s'", m.client.ID(),
 			lockName)
-		c <- struct{}{}
+		c <- errors.New("")
 		close(c)
 		delete(m.hb, lockName)
 	}
