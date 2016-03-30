@@ -215,6 +215,9 @@ func (l *CassandraLock) RefreshTTL(ttl time.Duration) error {
 // It returns an error if the lock is not owned by the current client
 func (l *CassandraLock) Refresh() error {
 	var name string
+	if l.ttl < time.Second {
+		return ErrInvalidTTL
+	}
 	query := fmt.Sprintf(refreshQ, l.client.keyspace, l.client.table, int(l.ttl.Seconds()))
 	applied, err := l.client.session.Query(query, l.owner, l.data, l.name, l.owner).ScanCAS(&name)
 	if err != nil {

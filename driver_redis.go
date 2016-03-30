@@ -194,6 +194,9 @@ func (l *RedisLock) RefreshTTL(ttl time.Duration) error {
 // Refresh extends the lock by extending the TTL in the store.
 // It returns an error if the lock is not owned by the current client
 func (l *RedisLock) Refresh() error {
+	if l.ttl < time.Millisecond {
+		return ErrInvalidTTL
+	}
 	ms := int(l.ttl.Nanoseconds() / int64(time.Millisecond))
 	res, err := redis.Bool(refreshScript.Do(l.client.conn, l.key(), l.dataKey(), l.client.ID(), ms, l.data))
 	if err != nil {
