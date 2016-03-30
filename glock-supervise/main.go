@@ -102,28 +102,28 @@ func main() {
 		client.SetID(*id)
 	}
 
-	manager := glock.NewLockManager(client, *ttl)
+	args := flag.Args()
+	commandStr := strings.Join(args, " ")
+
+	options := glock.AcquireOptions{
+		TTL:     *ttl,
+		MaxWait: *wait,
+		Data:    commandStr,
+	}
+	manager := glock.NewLockManager(client, options)
+
 	if !*quiet {
 		manager.Logger.SetOutput(os.Stderr)
 	}
 
 	manager.Logger.Printf("Using driver: %s", *driver)
-
-	args := flag.Args()
-	commandStr := strings.Join(args, " ")
 	manager.Logger.Printf("Running: %s", commandStr)
 	command := exec.Command(args[0], args[1:]...)
 	command.Stdin = os.Stdin
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 
-	var res int
-
-	if *wait > 0 {
-		res, err = manager.Exec(*name, command, *wait)
-	} else {
-		res, err = manager.TryExec(*name, command)
-	}
+	res, err := manager.Exec(*name, command, options)
 	if err != nil {
 		log.Fatal(err)
 	}
