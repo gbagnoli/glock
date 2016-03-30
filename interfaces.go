@@ -48,6 +48,11 @@ type Lock interface {
 	// Release removed the lock from the store.
 	// The lock must be owned by the current client
 	Release() error
+
+	// SetData sets the data payload for the lock.
+	// The data is set into the backend only when the lock is acquired,
+	// so any call to this method after acquisition won't update the value.
+	SetData(data string)
 }
 
 // LockInfo represent information about a given lock
@@ -60,6 +65,8 @@ type LockInfo struct {
 	Owner string
 	// The remaining TTL until the lock is automatically expired
 	TTL time.Duration
+	// Data associated with the lock, if any
+	Data string
 }
 
 var (

@@ -9,11 +9,11 @@ import (
 
 const (
 	createKs    = `CREATE KEYSPACE IF NOT EXISTS %s WITH REPLICATION = { 'class' : 'SimpleStrategy', 'replication_factor' : %d } AND DURABLE_WRITES=true`
-	createTable = `CREATE TABLE IF NOT EXISTS %s.%s (name text PRIMARY KEY, owner text)`
-	acquireQ    = `INSERT INTO %s.%s (name, owner) VALUES (?, ?) IF NOT EXISTS USING TTL %d`
+	createTable = `CREATE TABLE IF NOT EXISTS %s.%s (name text PRIMARY KEY, owner text, data text)`
+	acquireQ    = `INSERT INTO %s.%s (name, owner, data) VALUES (?, ?, ?) IF NOT EXISTS USING TTL %d`
 	releaseQ    = `DELETE FROM %s.%s WHERE name = ? IF owner = ?`
-	refreshQ    = `UPDATE %s.%s USING TTL %d set owner = ? WHERE name = ? IF owner = ?`
-	infoQ       = `SELECT owner, TTL(owner) FROM %s.%s WHERE name = ?`
+	refreshQ    = `UPDATE %s.%s USING TTL %d set owner = ?, data = ? WHERE name = ? IF owner = ?`
+	infoQ       = `SELECT owner, TTL(owner), data FROM %s.%s WHERE name = ?`
 )
 
 // CassandraOptions represents options for connecting to cassandra
@@ -43,6 +43,7 @@ type CassandraLock struct {
 	owner  string
 	ttl    time.Duration
 	client *CassandraClient
+	data   string
 }
 
 // NewCassandraLockClient creates a new client from options
@@ -144,13 +145,13 @@ func (c *CassandraClient) NewLock(name string) Lock {
 // Acquire acquires the lock for the specified time lentgh (ttl).
 // It returns immadiately if the lock cannot be acquired
 func (l *CassandraLock) Acquire(ttl time.Duration) error {
-	var name, owner string
+	var name, owner, data string
 	if ttl < time.Second {
 		return ErrInvalidTTL
 	}
 	l.ttl = ttl
 	query := fmt.Sprintf(acquireQ, l.client.keyspace, l.client.table, int(ttl.Seconds()))
-	applied, err := l.client.session.Query(query, l.name, l.owner).ScanCAS(&name, &owner)
+	applied, err := l.client.session.Query(query, l.name, l.owner, l.data).ScanCAS(&name, &owner, &data)
 	if err != nil {
 		return err
 	}
@@ -179,12 +180,12 @@ func (l *CassandraLock) Release() error {
 // Info returns information about the lock.
 func (l *CassandraLock) Info() (*LockInfo, error) {
 	var ttl int
-	var owner string
+	var owner, data string
 
 	query := fmt.Sprintf(infoQ, l.client.keyspace, l.client.table)
-	err := l.client.session.Query(query, l.name).SerialConsistency(gocql.Serial).Scan(&owner, &ttl)
+	err := l.client.session.Query(query, l.name).SerialConsistency(gocql.Serial).Scan(&owner, &ttl, &data)
 	if err == gocql.ErrNotFound {
-		return &LockInfo{l.name, false, "", time.Duration(0)}, nil
+		return &LockInfo{l.name, false, "", time.Duration(0), ""}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -194,6 +195,7 @@ func (l *CassandraLock) Info() (*LockInfo, error) {
 		Acquired: ttl > 0,
 		Owner:    owner,
 		TTL:      time.Duration(ttl) * time.Second,
+		Data:     data,
 	}, nil
 }
 
@@ -211,7 +213,7 @@ func (l *CassandraLock) RefreshTTL(ttl time.Duration) error {
 func (l *CassandraLock) Refresh() error {
 	var name string
 	query := fmt.Sprintf(refreshQ, l.client.keyspace, l.client.table, int(l.ttl.Seconds()))
-	applied, err := l.client.session.Query(query, l.owner, l.name, l.owner).ScanCAS(&name)
+	applied, err := l.client.session.Query(query, l.owner, l.data, l.name, l.owner).ScanCAS(&name)
 	if err != nil {
 		return err
 	}
@@ -219,4 +221,11 @@ func (l *CassandraLock) Refresh() error {
 		return ErrLockNotOwned
 	}
 	return nil
+}
+
+// SetData sets the data payload for the lock.
+// The data is set into the backend only when the lock is acquired,
+// so any call to this method after acquisition won't update the value.
+func (l *CassandraLock) SetData(data string) {
+	l.data = data
 }

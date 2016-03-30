@@ -9,7 +9,8 @@ import (
 const (
 	releaseScriptText = `
 if redis.call("get", KEYS[1]) == ARGV[1] then
-  redis.call("del",KEYS[1])
+  redis.call("del", KEYS[1])
+	redis.call("del", KEYS[2])
 	return 1
 end
 return 0
@@ -17,6 +18,7 @@ return 0
 	refreshScriptText = `
 if redis.call("get", KEYS[1]) == ARGV[1] then
   redis.call("set", KEYS[1], ARGV[1], "PX", ARGV[2])
+	redis.call("set", KEYS[2], ARGV[3])
 	return 1
 end
 return 0
@@ -25,8 +27,8 @@ return 0
 )
 
 var (
-	releaseScript = redis.NewScript(1, releaseScriptText)
-	refreshScript = redis.NewScript(1, refreshScriptText)
+	releaseScript = redis.NewScript(2, releaseScriptText)
+	refreshScript = redis.NewScript(2, refreshScriptText)
 )
 
 // DialFunc is a function prototype that matches redigo/redis.Dial signature.
@@ -59,6 +61,7 @@ type RedisLock struct {
 	name   string
 	ttl    time.Duration
 	client *RedisClient
+	data   string
 }
 
 // NewRedisClient return a new RedisClient given the provided RedisOptions
@@ -129,6 +132,10 @@ func (l *RedisLock) key() string {
 	return l.client.opts.Namespace + ":" + l.name
 }
 
+func (l *RedisLock) dataKey() string {
+	return l.key() + ":data"
+}
+
 // NewLock creates a new Lock. Lock is not automatically acquired.
 func (c *RedisClient) NewLock(name string) Lock {
 	return &RedisLock{
@@ -152,14 +159,15 @@ func (l *RedisLock) Acquire(ttl time.Duration) error {
 		return ErrLockHeldByOtherClient
 	case err != nil:
 		return err
-	default:
-		return nil
 	}
+	l.client.conn.Do("SET", l.dataKey(), l.data)
+
+	return nil
 }
 
 // Release releases the lock if owned. Returns an error if the lock is not owned by this client
 func (l *RedisLock) Release() error {
-	res, err := redis.Bool(releaseScript.Do(l.client.conn, l.key(), l.client.ID()))
+	res, err := redis.Bool(releaseScript.Do(l.client.conn, l.key(), l.dataKey(), l.client.ID()))
 	if err != nil {
 		return err
 	}
@@ -182,7 +190,7 @@ func (l *RedisLock) RefreshTTL(ttl time.Duration) error {
 // It returns an error if the lock is not owned by the current client
 func (l *RedisLock) Refresh() error {
 	ms := int(l.ttl.Nanoseconds() / int64(time.Millisecond))
-	res, err := redis.Bool(refreshScript.Do(l.client.conn, l.key(), l.client.ID(), ms))
+	res, err := redis.Bool(refreshScript.Do(l.client.conn, l.key(), l.dataKey(), l.client.ID(), ms, l.data))
 	if err != nil {
 		return err
 	}
@@ -194,22 +202,23 @@ func (l *RedisLock) Refresh() error {
 
 // Info returns information about the lock.
 func (l *RedisLock) Info() (*LockInfo, error) {
-	var owner string
+	var owner, data string
 	var expire int
 
 	l.client.conn.Send("MULTI")
 	l.client.conn.Send("GET", l.key())
 	l.client.conn.Send("PTTL", l.key())
+	l.client.conn.Send("GET", l.dataKey())
 	reply, err := redis.Values(l.client.conn.Do("EXEC"))
 
 	if err == redis.ErrNil {
-		return &LockInfo{l.name, false, "", time.Duration(0)}, nil
+		return &LockInfo{l.name, false, "", time.Duration(0), ""}, nil
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = redis.Scan(reply, &owner, &expire)
+	_, err = redis.Scan(reply, &owner, &expire, &data)
 	if err != nil {
 		return nil, err
 	}
@@ -218,8 +227,16 @@ func (l *RedisLock) Info() (*LockInfo, error) {
 
 	return &LockInfo{
 		Name:     l.name,
-		Acquired: true,
+		Acquired: ttl > 0,
 		Owner:    owner,
 		TTL:      ttl,
+		Data:     data,
 	}, nil
+}
+
+// SetData sets the data payload for the lock.
+// The data is set into the backend only when the lock is acquired,
+// so any call to this method after acquisition won't update the value.
+func (l *RedisLock) SetData(data string) {
+	l.data = data
 }
