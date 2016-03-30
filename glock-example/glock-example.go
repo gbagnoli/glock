@@ -15,23 +15,23 @@ func info(lock glock.Lock) {
 	if err != nil {
 		panic(err)
 	}
-	info_l(info)
+	lockInfo(info)
 }
 
-func info_m(manager *glock.LockManager, name string) {
+func managerInfo(manager *glock.LockManager, name string) {
 	info, err := manager.Info(name)
 	if err != nil {
 		panic(err)
 	}
-	info_l(info)
+	lockInfo(info)
 }
 
-func info_l(i *glock.LockInfo) {
+func lockInfo(i *glock.LockInfo) {
 	fmt.Printf("Name: %s, Owner: %s, TTL: %s, Acquired: %v, Data: %s\n", i.Name, i.Owner, i.TTL, i.Acquired, i.Data)
 }
 
 func main() {
-	tp := flag.String("type", "cassandra", "Type of the driver: cassandra or redis")
+	tp := flag.String("type", "memory", "Driver to use: cassandra|redis|memory")
 	flag.Parse()
 	var c, c2 glock.Client
 	var err error
@@ -45,6 +45,9 @@ func main() {
 		opts := glock.RedisOptions{"tcp", "localhost:6379", "", "myns", nil, nil}
 		c, err = glock.NewRedisClient(opts)
 		c2, err = glock.NewRedisClient(opts)
+	case "memory":
+		c = glock.NewMemoryClient("first")
+		c2 = glock.NewMemoryClient("second")
 	default:
 		fmt.Println("Invalid driver", *tp)
 		os.Exit(2)
@@ -105,15 +108,15 @@ func main() {
 		defer wg.Done()
 		manager2.Acquire("mylock", glock.AcquireOptions{MaxWait: 60 * time.Second, TTL: 10 * time.Second})
 		fmt.Println("Acquired lock mylock in manager2")
-		info_m(manager2, "mylock")
+		managerInfo(manager2, "mylock")
 		time.Sleep(4 * time.Second)
 		manager2.Release("mylock")
 	}()
-	info_m(manager, "mylock")
+	managerInfo(manager, "mylock")
 	manager.StartHeartbeat("mylock")
 	for i := 0; i < 10; i++ {
 		time.Sleep(1 * time.Second)
-		info_m(manager, "mylock")
+		managerInfo(manager, "mylock")
 	}
 	manager.Release("mylock")
 	wg.Wait()
