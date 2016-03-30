@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/garyburd/redigo/redis"
+	"github.com/gocql/gocql"
 )
 
 const (
@@ -67,7 +68,11 @@ type RedisLock struct {
 // NewRedisClient return a new RedisClient given the provided RedisOptions
 func NewRedisClient(opts RedisOptions) (*RedisClient, error) {
 	if opts.ClientID == "" {
-		opts.ClientID = UUID()
+		id, err := gocql.RandomUUID()
+		if err != nil {
+			return nil, err
+		}
+		opts.ClientID = id.String()
 	}
 	if opts.Network == "" {
 		opts.Network = "tcp"

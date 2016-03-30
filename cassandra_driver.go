@@ -77,12 +77,15 @@ func NewCassandraLockClient(opts CassandraOptions) (*CassandraClient, error) {
 		return nil, err
 	}
 
-	id := UUID()
+	id, err := gocql.RandomUUID()
+	if err != nil {
+		return nil, err
+	}
 
 	c.hosts = opts.Hosts
 	c.keyspace = opts.KeySpace
 	c.table = opts.TableName
-	c.clientID = id
+	c.clientID = id.String()
 	c.Reconnect()
 
 	return &c, nil
