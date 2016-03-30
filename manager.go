@@ -71,8 +71,16 @@ func (m *LockManager) acquire(lockName string, opts AcquireOptions) error {
 	return nil
 }
 
-// AcquireTTL works exactly like Acquire, but with a custom TTL for this lock.
+// Acquire tries to acquire the lock with the given name using the default TTL
+// for the manager. If the lock cannot be acquired, it will wait up to MaxWait
+// for the lock to be released by the owner.
+// If this manager instance already has acquired this lock, this action is a no-op.
 func (m *LockManager) Acquire(lockName string, opts AcquireOptions) error {
+
+	if _, ok := m.locks[lockName]; ok {
+		return nil
+	}
+
 	var waited time.Duration
 	lock := m.client.NewLock(lockName)
 
