@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 )
 
 // Exec executes the command only if the lock can be acquired
@@ -15,42 +14,10 @@ import (
 // if the lock is lost somehow.
 // It will wait up to maxWait for the lock to be acquired
 // returns the return code of the command, and any errors
-func (manager *LockManager) Exec(lock string, command *exec.Cmd, maxWait time.Duration) (int, error) {
-	return manager.exec(lock, command, maxWait, time.Duration(-1))
-}
-
-// ExecTTL is like Exec but an explicit TTL can be set for the lock
-func (manager *LockManager) ExecTTL(lock string, command *exec.Cmd, maxWait, ttl time.Duration) (int, error) {
-	return manager.exec(lock, command, maxWait, ttl)
-}
-
-// TryExec is like Exec, except it will fail without waiting if the lock cannot
-// be acquired
-func (manager *LockManager) TryExec(lock string, command *exec.Cmd) (int, error) {
-	return manager.exec(lock, command, time.Duration(-1), time.Duration(-1))
-}
-
-// TryExecTTL is like TryExec, but an explicit TTL can be set for the lock
-func (manager *LockManager) TryExecTTL(lock string, command *exec.Cmd, ttl time.Duration) (int, error) {
-	return manager.exec(lock, command, time.Duration(-1), ttl)
-}
-
-func (manager *LockManager) exec(lock string, command *exec.Cmd, maxWait, ttl time.Duration) (int, error) {
+func (manager *LockManager) Exec(lock string, command *exec.Cmd, opts AcquireOptions) (int, error) {
 	var err error
 	client := manager.Client()
-	if maxWait < 0 {
-		if ttl < 0 {
-			err = manager.TryAcquire(lock)
-		} else {
-			err = manager.TryAcquireTTL(lock, ttl)
-		}
-	} else {
-		if ttl < 0 {
-			err = manager.Acquire(lock, maxWait)
-		} else {
-			err = manager.AcquireTTL(lock, maxWait, ttl)
-		}
-	}
+	err = manager.Acquire(lock, opts)
 
 	if err != nil {
 		manager.Logger.Printf("Exec (%s); Cannot acquire lock '%s': %s", client.ID(), lock, err.Error())

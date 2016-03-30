@@ -9,20 +9,30 @@ import (
 
 // LockManager manages all the locks for a single client
 type LockManager struct {
-	Logger     *log.Logger
-	defaultTTL time.Duration
-	client     Client
-	locks      map[string]Lock
-	hb         map[string]chan error
+	Logger *log.Logger
+	opts   AcquireOptions
+	client Client
+	locks  map[string]Lock
+	hb     map[string]chan error
+}
+
+// AcquireOptions allows to set options during lock acquisition.
+type AcquireOptions struct {
+	// TTL is the ttl of the lock. If <= 0 the manager defaultTTL is used
+	TTL time.Duration
+	// How long to wait for the lock to be acquired.
+	MaxWait time.Duration
+	// The Data to set with the lock.
+	Data string
 }
 
 // NewLockManager returns a new LockManager for the given client.
 // By default, logging is sent to /dev/null. You must call SetOutput() on
 // the Logger instance if you want logging to be sent somewhere.
-func NewLockManager(client Client, defaultTTL time.Duration) *LockManager {
+func NewLockManager(client Client, opts AcquireOptions) *LockManager {
 	return &LockManager{
 		log.New(ioutil.Discard, "glock: ", log.LstdFlags|log.LUTC),
-		defaultTTL,
+		opts,
 		client,
 		make(map[string]Lock),
 		make(map[string]chan error),
@@ -32,12 +42,6 @@ func NewLockManager(client Client, defaultTTL time.Duration) *LockManager {
 // Client returns the current lock client in use
 func (m *LockManager) Client() Client {
 	return m.client
-}
-
-// TryAcquire tries to acquire the lock with the given name using the default TTL for the manager
-// it will return immediately if the lock cannot be acquired
-func (m *LockManager) TryAcquire(lockName string) error {
-	return m.TryAcquireTTL(lockName, m.defaultTTL)
 }
 
 // Info returns information about a lock with the given name
@@ -53,34 +57,40 @@ func (m *LockManager) Info(lockName string) (*LockInfo, error) {
 	return info, nil
 }
 
-// TryAcquireTTL is like TryAcquire, but with a custom TTL for this lock.
-func (m *LockManager) TryAcquireTTL(lockName string, ttl time.Duration) error {
+func (m *LockManager) acquire(lockName string, opts AcquireOptions) error {
 	lock := m.client.NewLock(lockName)
-	err := lock.Acquire(ttl)
+	lock.SetData(opts.Data)
+	err := lock.Acquire(opts.TTL)
 	if err != nil {
 		m.Logger.Printf("client %s: Cannot acquire lock '%s': %s",
 			m.client.ID(), lockName, err.Error())
 		return err
 	}
-	m.Logger.Printf("client %s: Acquired lock '%s' for %v", m.client.ID(), lockName, ttl)
+	m.Logger.Printf("client %s: Acquired lock '%s' for %v", m.client.ID(), lockName, opts.TTL)
 	m.locks[lockName] = lock
 	return nil
 }
 
-// Acquire tries to acquire the lock with the given name using the default TTL for the manager.
-// If the lock cannot be acquired, it will wait up to maxWait for the lock to be released by the owner.
-func (m *LockManager) Acquire(lockName string, maxWait time.Duration) error {
-	return m.AcquireTTL(lockName, m.defaultTTL, maxWait)
-}
-
 // AcquireTTL works exactly like Acquire, but with a custom TTL for this lock.
-func (m *LockManager) AcquireTTL(lockName string, ttl time.Duration, maxWait time.Duration) error {
+func (m *LockManager) Acquire(lockName string, opts AcquireOptions) error {
 	var waited time.Duration
 	lock := m.client.NewLock(lockName)
 
+	if opts.TTL <= 0 {
+		opts.TTL = m.opts.TTL
+	}
+
+	if opts.Data == "" {
+		opts.Data = m.opts.Data
+	}
+
+	if opts.MaxWait <= 0 {
+		opts.MaxWait = m.opts.MaxWait
+	}
+
 	for {
 		init := time.Now()
-		err := m.TryAcquireTTL(lockName, ttl)
+		err := m.acquire(lockName, opts)
 		if err == nil {
 			return nil
 		}
@@ -92,15 +102,15 @@ func (m *LockManager) AcquireTTL(lockName string, ttl time.Duration, maxWait tim
 			return err
 		}
 
-		if waited >= maxWait {
+		if waited >= opts.MaxWait {
 			m.Logger.Printf("client %s: Cannot acquire lock '%s' after %v",
 				m.client.ID(), lockName, waited)
 			return ErrLockHeldByOtherClient
 		}
 
 		wait := info.TTL - time.Since(init)
-		if waited+wait > maxWait {
-			wait = maxWait - waited
+		if waited+wait > opts.MaxWait {
+			wait = opts.MaxWait - waited
 		}
 
 		time.Sleep(wait)
