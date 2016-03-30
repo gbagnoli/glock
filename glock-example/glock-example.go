@@ -27,7 +27,7 @@ func info_m(manager *glock.LockManager, name string) {
 }
 
 func info_l(i *glock.LockInfo) {
-	fmt.Printf("Name: %s, Owner: %s, TTL: %s, Acquired: %s\n", i.Name, i.Owner, i.TTL, i.Acquired)
+	fmt.Printf("Name: %s, Owner: %s, TTL: %s, Acquired: %v, Data: %s\n", i.Name, i.Owner, i.TTL, i.Acquired, i.Data)
 }
 
 func main() {
@@ -58,6 +58,7 @@ func main() {
 	c.SetID("first")
 	fmt.Printf("client id: %s\n", c.ID())
 	lock := c.NewLock("mylock")
+	lock.SetData("My personal data")
 	info(lock)
 	err = lock.Acquire(1800 * time.Second)
 	if err != nil {
@@ -68,7 +69,7 @@ func main() {
 	lock2 := c2.NewLock("mylock")
 	err = lock2.Acquire(1800 * time.Second)
 	if err == nil {
-		panic("WUT")
+		panic(err)
 	}
 	err = lock.Refresh()
 	if err != nil {
@@ -92,9 +93,9 @@ func main() {
 	info(lock)
 
 	fmt.Println("---------- Manager -------- ")
-	manager := glock.NewLockManager(c, 10*time.Second)
-	manager2 := glock.NewLockManager(c2, 10*time.Second)
-	err = manager.TryAcquire("mylock")
+	manager := glock.NewLockManager(c, glock.AcquireOptions{TTL: 10 * time.Second})
+	manager2 := glock.NewLockManager(c2, glock.AcquireOptions{TTL: 10 * time.Second})
+	err = manager.Acquire("mylock", glock.AcquireOptions{MaxWait: 0})
 	if err != nil {
 		panic(err)
 	}
@@ -102,7 +103,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		manager2.Acquire("mylock", 60*time.Second)
+		manager2.Acquire("mylock", glock.AcquireOptions{MaxWait: 60 * time.Second, TTL: 10 * time.Second})
 		fmt.Println("Acquired lock mylock in manager2")
 		info_m(manager2, "mylock")
 		time.Sleep(4 * time.Second)
