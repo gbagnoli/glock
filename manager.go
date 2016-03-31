@@ -39,6 +39,18 @@ func NewLockManager(client Client, opts AcquireOptions) *LockManager {
 	}
 }
 
+// UpdateDataFor updates data for an existing, acquired lock. Data won't be
+// saved into the backend database until the lock is refreshed (either manually
+// or at the next heartbeat.
+func (m *LockManager) UpdateDataFor(lock, data string) error {
+	l, ok := m.locks[lock]
+	if !ok {
+		return ErrInvalidLock
+	}
+	l.SetData(data)
+	return nil
+}
+
 // Client returns the current lock client in use
 func (m *LockManager) Client() Client {
 	return m.client
