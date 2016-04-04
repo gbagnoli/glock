@@ -69,6 +69,15 @@ func (m *LockManager) Info(lockName string) (*LockInfo, error) {
 	return info, nil
 }
 
+// Refresh refreshes a single lock.
+func (m *LockManager) Refresh(lockName string) error {
+	lock, ok := m.locks[lockName]
+	if !ok {
+		return ErrInvalidLock
+	}
+	return lock.Refresh()
+}
+
 func (m *LockManager) acquire(lockName string, opts AcquireOptions) error {
 	lock := m.client.NewLock(lockName)
 	lock.SetData(opts.Data)
