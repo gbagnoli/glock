@@ -98,10 +98,6 @@ func (m *LockManager) acquire(lockName string, opts AcquireOptions) error {
 // If this manager instance already has acquired this lock, this action is a no-op.
 func (m *LockManager) Acquire(lockName string, opts AcquireOptions) error {
 
-	if _, ok := m.locks[lockName]; ok {
-		return nil
-	}
-
 	var waited time.Duration
 	lock := m.client.NewLock(lockName)
 
@@ -115,6 +111,11 @@ func (m *LockManager) Acquire(lockName string, opts AcquireOptions) error {
 
 	if opts.MaxWait <= 0 {
 		opts.MaxWait = m.opts.MaxWait
+	}
+
+	if lock, ok := m.locks[lockName]; ok {
+		lock.SetData(opts.Data)
+		return lock.RefreshTTL(opts.TTL)
 	}
 
 	for {
