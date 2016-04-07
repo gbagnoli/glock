@@ -110,6 +110,7 @@ func main() {
 		MaxWait: *wait,
 		Data:    commandStr,
 	}
+	execOpts := glock.ExecOptions{Options: options}
 	manager := glock.NewLockManager(client, options)
 
 	if !*quiet {
@@ -123,7 +124,7 @@ func main() {
 	command.Stdout = os.Stdout
 	command.Stderr = os.Stderr
 
-	res, err := manager.Exec(*name, command, options)
+	res, err := manager.Exec(*name, command, execOpts)
 	if err != nil {
 		log.Fatal(err)
 	}

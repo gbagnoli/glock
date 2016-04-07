@@ -9,15 +9,26 @@ import (
 	"syscall"
 )
 
+// PreExecHook is an hook for the manager.Exec. It gets called after the lock is
+// acquired but before running the subprocess. If the return value (err) is not
+// nil, Exec will exit with (-1, err)
+type PreExecHook func(log *log.Logger) error
+
+// ExecOptions controls execution of Exec
+type ExecOptions struct {
+	Options AcquireOptions
+	PreExec PreExecHook
+}
+
 // Exec executes the command only if the lock can be acquired
 // It refreshes the lock using manager's heartbeats, and terminates the command
 // if the lock is lost somehow.
 // It will wait up to maxWait for the lock to be acquired
 // returns the return code of the command, and any errors
-func (manager *LockManager) Exec(lock string, command *exec.Cmd, opts AcquireOptions) (int, error) {
+func (manager *LockManager) Exec(lock string, command *exec.Cmd, opts ExecOptions) (int, error) {
 	var err error
 	client := manager.Client()
-	err = manager.Acquire(lock, opts)
+	err = manager.Acquire(lock, opts.Options)
 
 	if err != nil {
 		manager.Logger.Printf("Exec (%s); Cannot acquire lock '%s': %s", client.ID(), lock, err.Error())
@@ -30,6 +41,15 @@ func (manager *LockManager) Exec(lock string, command *exec.Cmd, opts AcquireOpt
 			manager.Logger.Printf("Exec (%s); Cannot release lock '%s': %s", client.ID(), lock, err.Error())
 		}
 	}()
+
+	if opts.PreExec != nil {
+		manager.Logger.Printf("Exec (%s): Executing pre-exec-hook", client.ID())
+		err := opts.PreExec(manager.Logger)
+		if err != nil {
+			manager.Logger.Printf("Exec (%s): Pre-Exec returned error '%s'", client.ID(), err.Error())
+			return -1, err
+		}
+	}
 
 	commandStr := strings.Join(command.Args, " ")
 	err = command.Start()
