@@ -3,13 +3,18 @@ package glock
 import (
 	"testing"
 	"time"
+
+	"github.com/gocql/gocql"
 )
 
-func memoryClients() (Client, Client) {
-	return NewMemoryClient("client1"), NewMemoryClient("client2")
+func memoryClient(t *testing.T) Client {
+	return NewMemoryClient(gocql.TimeUUID().String())
 }
 
-func TestAcquireMemory(t *testing.T) {
-	c1, c2 := memoryClients()
-	testAcquire(t, c1, c2, time.Millisecond)
+func TestMemoryAcquire(t *testing.T) {
+	testAcquire(t, memoryClient, time.Millisecond)
+}
+
+func TestMemoryClient(t *testing.T) {
+	testClient(t, memoryClient)
 }

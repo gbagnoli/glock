@@ -25,11 +25,10 @@ func redisClient(t *testing.T) Client {
 	return c1
 }
 
-func redisClients(t *testing.T) (Client, Client) {
-	return redisClient(t), redisClient(t)
+func TestRedisAcquire(t *testing.T) {
+	testAcquire(t, redisClient, time.Millisecond)
 }
 
-func TestAcquireRedis(t *testing.T) {
-	c1, c2 := redisClients(t)
-	testAcquire(t, c1, c2, time.Millisecond)
+func TestRedisClient(t *testing.T) {
+	testClient(t, redisClient)
 }

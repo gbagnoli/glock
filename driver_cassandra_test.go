@@ -29,11 +29,10 @@ func cassandraClient(t *testing.T) Client {
 	return c
 }
 
-func cassandraClients(t *testing.T) (Client, Client) {
-	return cassandraClient(t), cassandraClient(t)
+func TestCassandraAcquire(t *testing.T) {
+	testAcquire(t, cassandraClient, time.Second)
 }
 
-func TestAcquireCassandra(t *testing.T) {
-	c1, c2 := cassandraClients(t)
-	testAcquire(t, c1, c2, time.Second)
+func TestCassandraClient(t *testing.T) {
+	testClient(t, cassandraClient)
 }
