@@ -78,5 +78,5 @@ var (
 	// ErrInvalidLock is returned when the lock name is invalid
 	ErrInvalidLock = errors.New("Invalid lock name")
 	// ErrLockNotOwned is returned when either the lock is not existing or held by another client
-	ErrLockNotOwned = errors.New("Invalid lock name")
+	ErrLockNotOwned = errors.New("Lock is not held by current client")
 )

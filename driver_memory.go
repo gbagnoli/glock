@@ -64,7 +64,7 @@ func (m *MemoryClient) NewLock(name string) Lock {
 }
 
 func (l *MemoryLock) Acquire(ttl time.Duration) error {
-	if ttl <= 0 {
+	if ttl <= time.Millisecond {
 		return ErrInvalidTTL
 	}
 	l.ttl = ttl
@@ -94,10 +94,10 @@ func (l *MemoryLock) Release() error {
 	defer db.mtx.Unlock()
 	lock, ok := db.locks[l.name]
 	if !ok {
-		return ErrInvalidLock
+		return ErrLockNotOwned
 	}
 	if lock.client.id != l.client.id {
-		return ErrLockHeldByOtherClient
+		return ErrLockNotOwned
 	}
 	lock.timer.Stop()
 	delete(db.locks, l.name)
@@ -106,7 +106,7 @@ func (l *MemoryLock) Release() error {
 }
 
 func (l *MemoryLock) Refresh() error {
-	if l.ttl <= 0 {
+	if l.ttl <= time.Millisecond {
 		return ErrInvalidTTL
 	}
 
@@ -114,10 +114,10 @@ func (l *MemoryLock) Refresh() error {
 	defer db.mtx.Unlock()
 	lock, ok := db.locks[l.name]
 	if !ok {
-		return ErrInvalidLock
+		return ErrLockNotOwned
 	}
 	if lock.client.id != l.client.id {
-		return ErrLockHeldByOtherClient
+		return ErrLockNotOwned
 	}
 	lock.timer.Reset(lock.ttl)
 	lock.expire = time.Now().Add(lock.ttl)

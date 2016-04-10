@@ -29,10 +29,14 @@ func cassandraClient(t *testing.T) Client {
 	return c
 }
 
-func TestCassandraAcquire(t *testing.T) {
-	testAcquire(t, cassandraClient, time.Second)
+func TestCassandraManagerAcquire(t *testing.T) {
+	testManagerAcquire(t, cassandraClient, time.Second)
 }
 
 func TestCassandraClient(t *testing.T) {
 	testClient(t, cassandraClient)
+}
+
+func TestCassandraLock(t *testing.T) {
+	testLock(t, cassandraClient, time.Second)
 }

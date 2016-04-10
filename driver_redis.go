@@ -177,7 +177,7 @@ func (l *RedisLock) Release() error {
 		return err
 	}
 	if res == false {
-		return ErrLockHeldByOtherClient
+		return ErrLockNotOwned
 	}
 	return nil
 }

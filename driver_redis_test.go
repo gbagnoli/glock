@@ -25,10 +25,14 @@ func redisClient(t *testing.T) Client {
 	return c1
 }
 
-func TestRedisAcquire(t *testing.T) {
-	testAcquire(t, redisClient, time.Millisecond)
+func TestRedisManagerAcquire(t *testing.T) {
+	testManagerAcquire(t, redisClient, time.Millisecond)
 }
 
 func TestRedisClient(t *testing.T) {
 	testClient(t, redisClient)
+}
+
+func TestRedisLock(t *testing.T) {
+	testLock(t, redisClient, time.Millisecond)
 }
