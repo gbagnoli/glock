@@ -5,27 +5,28 @@ glock
 [![GoDoc](http://godoc.org/github.com/gbagnoli/glock?status.png)](http://godoc.org/github.com/gbagnoli/glock)
 
 Package glock implements locking against a variety of backends for the Go
-programming language
+programming language.
 
-**WARN**: this package is under heavy develpment, API is not stable yet.
+**WARN**: this package is under heavy development, API is not stable yet.
 
 Backends
 --------
 
-* Redis (single server)
+* [Redis](http://redis.io/)
 
   Simple [Redis](http://redis.io/) implementation. Requires redis >= 2.6 as it
   uses [lua scripting](http://redis.io/commands/eval).  
   This implementation is safe only if used againt a single master, with no
   replication.
 
-* Cassandra
+* [Cassandra](http://cassandra.apache.org/)
 
   [Cassandra](http://cassandra.apache.org/) implementation, inspired by
-  datastax's "[Consensus on Cassandra](http://cassandra.apache.org/)" blogpost.  
+  datastax's "[Consensus on Cassandra](http://www.datastax.com/dev/blog/consensus-on-cassandra)" blogpost.  
   Requires cassandra >= 2.0 as it uses lightweight transactions.
 
 * Memory
+
   Naive in-process implementation, only useful for testing.
 
 Installation
@@ -60,4 +61,4 @@ Roadmap
 Example
 -------
 
-See [glock-example](./glock-example)
+See [glock-example](./glock-example/glock-example.go)
