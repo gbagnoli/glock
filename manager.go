@@ -80,7 +80,9 @@ func (m *LockManager) Refresh(lockName string) error {
 
 func (m *LockManager) acquire(lockName string, opts AcquireOptions) error {
 	lock := m.client.NewLock(lockName)
-	lock.SetData(opts.Data)
+	if opts.Data != "" {
+		lock.SetData(opts.Data)
+	}
 	err := lock.Acquire(opts.TTL)
 	if err != nil {
 		m.Logger.Printf("client %s: Cannot acquire lock '%s': %s",
