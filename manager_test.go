@@ -37,6 +37,10 @@ func testManagerAcquire(t *testing.T, cfun newClientFunc, scale time.Duration) {
 	defer m1.ReleaseAll()
 	defer m2.ReleaseAll()
 
+	if m1.Client().ID() == m2.Client().ID() {
+		t.Fatalf("Both clients have the same id '%s'", m2.Client().ID())
+	}
+
 	err := m1.Acquire(lockName, AcquireOptions{})
 	if err != nil {
 		t.Fatalf("Cannot acquire lock: %s", err)
@@ -55,5 +59,41 @@ func testManagerAcquire(t *testing.T, cfun newClientFunc, scale time.Duration) {
 	after := info(t, m1)
 	if after.TTL < before.TTL {
 		t.Fatalf("Lock not refreshed? TTL %v < %v", after.TTL, before.TTL)
+	}
+	if after.Data != "newdata" {
+		t.Fatalf("Refreshing did not set new data: '%s' != 'newdata'", after.Data)
+	}
+	err = m1.SetData(lockName, "refresh")
+	if err != nil {
+		t.Fatalf("Got error while setting data: '%s'", err)
+	}
+	err = m1.Refresh(lockName)
+	if err != nil {
+		t.Fatalf("Error during refresh: '%s'", err)
+	}
+	st := info(t, m1)
+	if st.Data != "refresh" {
+		t.Fatalf("Data should have been set to 'refresh' after refresh, got '%s'", st.Data)
+	}
+
+	// Acquire an already acquired lock is equal to a refresh for the manager
+	err = m1.SetData(lockName, "acquire-refresh")
+	if err != nil {
+		t.Fatalf("Got error while setting data: '%s'", err)
+	}
+
+	err = m1.SetData("nonexiting", "other")
+	if err != ErrInvalidLock {
+		t.Fatalf("Setting data on non existing lock should return '%s', got '%s'", ErrInvalidLock, err)
+	}
+
+	err = m1.Refresh("nonexisting")
+	if err != ErrInvalidLock {
+		t.Fatalf("Refreshing non-existing lock should return '%s', got '%s'", ErrInvalidLock, err)
+	}
+
+	_, err = m1.Info("nonexisting")
+	if err != ErrInvalidLock {
+		t.Fatalf("Info on non-existing lock should return '%s', got '%s'", ErrInvalidLock, err)
 	}
 }
