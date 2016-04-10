@@ -6,6 +6,9 @@ go:
   - 1.5.3
   - 1.6
 
+services:
+  - redis-server
+
 install:
   - go get .
   - go get -u github.com/golang/lint/golint
@@ -14,6 +17,6 @@ script:
   - set -e
   - go vet .
   - golint .
-  - go test -v
+  - go test -v -tags "redis"
 
 
