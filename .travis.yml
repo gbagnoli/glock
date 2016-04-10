@@ -5,10 +5,31 @@ sudo: false
 go:
   - 1.6
 
+cache:
+  directories:
+    - $HOME/.ccm/repository
+    - $HOME/.local/lib/python2.7
+
+matrix:
+  - fast_finish: true
+
+env:
+  matrix:
+    - CASSANDRA=2.0.17
+    - CASSANDRA=2.1.13
+    - CASSANDRA=2.2.5
+    - CASSANDRA=3.4
+
+
 services:
   - redis-server
 
 install:
+  - pip install --user cql PyYAML six
+  - git clone https://github.com/pcmanus/ccm.git
+  - pushd ccm
+  - ./setup.py install --user
+  - popd
   - go get .
   - go get -u github.com/golang/lint/golint
 
@@ -16,6 +37,4 @@ script:
   - set -e
   - go vet .
   - golint .
-  - go test -v -tags "redis"
-
-
+  - PATH="$PATH:$HOME/.local/bin" bash integration.sh "$CASSANDRA"
