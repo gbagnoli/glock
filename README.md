@@ -7,6 +7,8 @@ glock
 Package glock implements locking against a variety of backends for the Go
 programming language.
 
+glock is released under the [MIT license](./LICENSE.txt).
+
 **WARN**: this package is under heavy development, API is not stable yet.
 
 Backends
