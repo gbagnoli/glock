@@ -15,6 +15,13 @@ func memoryClient(t *testing.T) Client {
 
 func TestMemoryManagerAcquire(t *testing.T) {
 	testManagerAcquire(t, memoryClient, memoryScale)
+}
+
+func TestMemoryManagerAcquireWait(t *testing.T) {
+	testManagerAcquireWait(t, memoryClient, memoryScale)
+}
+
+func TestMemoryManagerFailReleaseAll(t *testing.T) {
 	testManagerAcquireWait(t, memoryClient, memoryScale)
 }
 

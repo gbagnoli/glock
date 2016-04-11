@@ -96,6 +96,32 @@ func testManagerAcquireWait(t *testing.T, cfun newClientFunc, scale time.Duratio
 	}
 }
 
+func testManagerFailReleaseAll(t *testing.T, cfun newClientFunc, scale time.Duration) {
+	c1 := cfun(t)
+	opts := options(scale, ttlLength, 0, defData)
+	m1 := NewLockManager(c1, opts)
+
+	err := m1.Acquire(lockName, opts)
+	if err != nil {
+		t.Fatalf("Cannot acquire lock: %s", err)
+	}
+
+	l := c1.NewLock(lockName)
+	err = l.Release()
+	if err != nil {
+		t.Fatalf("Error in release: %s", err)
+	}
+
+	// Manager has a reference to an 'acquired' lock which is not owned anymore
+	errors := m1.ReleaseAll()
+	expected := map[string]error{
+		lockName: ErrLockHeldByOtherClient,
+	}
+	if len(errors) != 1 || errors[lockName] != ErrLockHeldByOtherClient {
+		t.Fatalf("errors: expected %+v, got %+v", expected, errors)
+	}
+}
+
 func testManagerAcquire(t *testing.T, cfun newClientFunc, scale time.Duration) {
 	m1, m2 := managers(cfun(t), cfun(t), scale)
 	defer m1.ReleaseAll()
