@@ -18,7 +18,6 @@ env:
     - CASSANDRA=2.0.17
     - CASSANDRA=2.1.13
     - CASSANDRA=2.2.5
-    - CASSANDRA=3.4
 
 
 services:
