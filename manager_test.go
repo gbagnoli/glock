@@ -98,7 +98,7 @@ func testManagerAcquireWait(t *testing.T, cfun newClientFunc, scale time.Duratio
 
 func testManagerFailReleaseAll(t *testing.T, cfun newClientFunc, scale time.Duration) {
 	c1 := cfun(t)
-	opts := options(scale, ttlLength, 0, defData)
+	opts := options(scale, ttlLength*10, 0, defData)
 	m1 := NewLockManager(c1, opts)
 
 	err := m1.Acquire(lockName, opts)
