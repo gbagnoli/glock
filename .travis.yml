@@ -18,4 +18,5 @@ script:
   - golint .
   - go test -v -tags "redis"
 
-
+notifications:
+  - email: false
