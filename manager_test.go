@@ -1,6 +1,7 @@
 package glock
 
 import (
+	"sync"
 	"testing"
 	"time"
 )
@@ -30,6 +31,69 @@ func info(t *testing.T, m *LockManager) *LockInfo {
 		t.Fatalf("Error while getting lock info: '%s'", err)
 	}
 	return res
+}
+
+func testManagerAcquireWait(t *testing.T, cfun newClientFunc, scale time.Duration) {
+	m1, m2 := managers(cfun(t), cfun(t), scale)
+	defer m1.ReleaseAll()
+	defer m2.ReleaseAll()
+
+	ttl := 10
+	opts := options(scale, ttl, 4*ttl, defData)
+	var wg sync.WaitGroup
+	var err1, err2 error
+
+	// Starting hearbeats before acquire should return an error
+	_, err := m1.StartHeartbeat(lockName)
+	if err != ErrInvalidLock {
+		t.Fatalf("Startheartbeat, expected: '%s', got: '%s'", ErrInvalidLock, err)
+	}
+
+	err = m1.Acquire(lockName, opts)
+	if err != nil {
+		t.Fatalf("Cannot acquire lock: '%s'", err)
+	}
+
+	_, err = m1.StartHeartbeat(lockName)
+	if err != nil {
+		t.Fatalf("Cannot start heartbeats: '%s'", err)
+	}
+
+	info1 := info(t, m1)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		// The first acquire should expire (maxwait is lesser than ttl)
+		err1 = m2.Acquire(lockName, options(scale, ttl, int(ttl/2), defData))
+		// This acquire should wait until m1 releases the lock, than acquire
+		err2 = m2.Acquire(lockName, options(scale, ttl, 4*ttl, defData))
+	}()
+
+	time.Sleep(time.Duration(3 * ttl))
+	err = m1.Release(lockName)
+	wg.Wait()
+
+	if err != nil {
+		t.Errorf("Error in release: %s", err)
+	}
+
+	if !info1.Acquired || info1.Owner != m1.Client().ID() {
+		t.Errorf("info: %+v -- expected Acquired: true and Owner: %s", info1, m1.Client().ID())
+	}
+
+	if err1 != ErrLockHeldByOtherClient {
+		t.Errorf("In acquire: expected '%s', got '%s'", ErrLockHeldByOtherClient, err)
+	}
+
+	if err2 != nil {
+		t.Fatalf("Error in acquire for manager2: '%s'", err)
+	}
+
+	info2 := info(t, m2)
+	if !info2.Acquired || info2.Owner != m2.Client().ID() {
+		t.Errorf("info: %+v -- expected Acquired: true and Owner: %s", info2, m2.Client().ID())
+	}
 }
 
 func testManagerAcquire(t *testing.T, cfun newClientFunc, scale time.Duration) {

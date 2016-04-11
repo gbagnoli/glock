@@ -7,12 +7,15 @@ import (
 	"github.com/gocql/gocql"
 )
 
+var memoryScale = time.Millisecond
+
 func memoryClient(t *testing.T) Client {
 	return NewMemoryClient(gocql.TimeUUID().String())
 }
 
 func TestMemoryManagerAcquire(t *testing.T) {
-	testManagerAcquire(t, memoryClient, time.Millisecond)
+	testManagerAcquire(t, memoryClient, memoryScale)
+	testManagerAcquireWait(t, memoryClient, memoryScale)
 }
 
 func TestMemoryClient(t *testing.T) {
@@ -20,5 +23,5 @@ func TestMemoryClient(t *testing.T) {
 }
 
 func TestMemoryLock(t *testing.T) {
-	testLock(t, memoryClient, time.Millisecond)
+	testLock(t, memoryClient, memoryScale)
 }
