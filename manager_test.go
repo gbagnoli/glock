@@ -38,7 +38,7 @@ func testManagerAcquireWait(t *testing.T, cfun newClientFunc, scale time.Duratio
 	defer m1.ReleaseAll()
 	defer m2.ReleaseAll()
 
-	ttl := 10
+	ttl := 100
 	opts := options(scale, ttl, 4*ttl, defData)
 	var wg sync.WaitGroup
 	var err1, err2 error
@@ -65,7 +65,7 @@ func testManagerAcquireWait(t *testing.T, cfun newClientFunc, scale time.Duratio
 	go func() {
 		defer wg.Done()
 		// The first acquire should expire (maxwait is lesser than ttl)
-		err1 = m2.Acquire(lockName, options(scale, ttl, int(ttl/2), defData))
+		err1 = m2.Acquire(lockName, options(scale, ttl, 2, defData))
 		// This acquire should wait until m1 releases the lock, than acquire
 		err2 = m2.Acquire(lockName, options(scale, ttl, 4*ttl, defData))
 	}()
@@ -115,9 +115,9 @@ func testManagerFailReleaseAll(t *testing.T, cfun newClientFunc, scale time.Dura
 	// Manager has a reference to an 'acquired' lock which is not owned anymore
 	errors := m1.ReleaseAll()
 	expected := map[string]error{
-		lockName: ErrLockHeldByOtherClient,
+		lockName: ErrLockNotOwned,
 	}
-	if len(errors) != 1 || errors[lockName] != ErrLockHeldByOtherClient {
+	if len(errors) != 1 || errors[lockName] != ErrLockNotOwned {
 		t.Fatalf("errors: expected %+v, got %+v", expected, errors)
 	}
 }

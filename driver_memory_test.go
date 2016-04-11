@@ -22,7 +22,7 @@ func TestMemoryManagerAcquireWait(t *testing.T) {
 }
 
 func TestMemoryManagerFailReleaseAll(t *testing.T) {
-	testManagerAcquireWait(t, memoryClient, memoryScale)
+	testManagerFailReleaseAll(t, memoryClient, memoryScale)
 }
 
 func TestMemoryClient(t *testing.T) {
