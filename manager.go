@@ -180,7 +180,7 @@ func heartbeat(client Client, logger *log.Logger, lockName string, ttl time.Dura
 	client.Reconnect()
 	defer client.Close()
 	freq := time.Duration(ttl / 2)
-	enlapsed := time.Duration(0)
+	elapsed := time.Duration(0)
 	sleeptime := 10 * time.Millisecond
 	if sleeptime > freq {
 		sleeptime = freq
@@ -193,7 +193,7 @@ func heartbeat(client Client, logger *log.Logger, lockName string, ttl time.Dura
 			return
 
 		default:
-			if enlapsed >= freq {
+			if elapsed >= freq {
 				start := time.Now()
 				err := lock.RefreshTTL(ttl)
 				if err != nil {
@@ -210,10 +210,10 @@ func heartbeat(client Client, logger *log.Logger, lockName string, ttl time.Dura
 					client.ID(), lockName, ttl)
 				s := sleeptime - (time.Now().Sub(start))
 				time.Sleep(s)
-				enlapsed = s
+				elapsed = s
 			} else {
 				time.Sleep(sleeptime)
-				enlapsed += sleeptime
+				elapsed += sleeptime
 			}
 		}
 	}
