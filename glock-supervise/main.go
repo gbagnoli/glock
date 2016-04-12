@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gbagnoli/glock"
+	"gopkg.in/gbagnoli/glock.v1"
 )
 
 type cHostsFlag struct {
