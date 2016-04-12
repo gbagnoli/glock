@@ -35,7 +35,7 @@ Installation
 ------------
 
 ```
-go get github.com/gbagnoli/glock
+go get gopkg.in/gbagnoli/glock.v1
 ```
 
 Tests
