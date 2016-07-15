@@ -15,9 +15,11 @@ matrix:
 
 env:
   matrix:
-    - CASSANDRA=2.0.17
-    - CASSANDRA=2.1.13
-    - CASSANDRA=2.2.5
+    - CASSANDRA=2.0.9
+    - CASSANDRA=2.1.15
+    - CASSANDRA=2.2.7
+    - CASSANDRA=3.0.8
+    - CASSANDRA=3.7
 
 
 services:

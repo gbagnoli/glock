@@ -28,13 +28,14 @@ type CassandraOptions struct {
 
 // CassandraClient is the Client implementation for cassandra
 type CassandraClient struct {
-	cluster     *gocql.ClusterConfig
-	hosts       []string
-	keyspace    string
-	table       string
-	clientID    string
-	session     *gocql.Session
-	consistency gocql.Consistency
+	cluster      *gocql.ClusterConfig
+	hosts        []string
+	keyspace     string
+	table        string
+	clientID     string
+	session      *gocql.Session
+	protoVersion int
+	consistency  gocql.Consistency
 }
 
 // CassandraLock is the Lock implementation for cassandra
@@ -56,10 +57,19 @@ func NewCassandraLockClient(opts CassandraOptions) (*CassandraClient, error) {
 	if opts.ReplicationFactor == 0 {
 		consistency = gocql.One
 	}
-	c := CassandraClient{nil, opts.Hosts, "", "", "", nil, consistency}
 
-	c.cluster = gocql.NewCluster(opts.Hosts...)
-	session, err := c.cluster.CreateSession()
+	var session *gocql.Session
+	var err error
+	var c CassandraClient
+	for proto := 4; proto > 1; proto-- {
+		c = CassandraClient{nil, opts.Hosts, "", "", "", nil, proto, consistency}
+		c.cluster = gocql.NewCluster(opts.Hosts...)
+		c.cluster.ProtoVersion = proto
+		session, err = c.cluster.CreateSession()
+		if err == nil {
+			break
+		}
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -110,6 +120,7 @@ func (c *CassandraClient) Reconnect() error {
 	c.cluster = gocql.NewCluster(c.hosts...)
 	c.cluster.Keyspace = c.keyspace
 	c.cluster.Consistency = c.consistency
+	c.cluster.ProtoVersion = c.protoVersion
 	session, err := c.cluster.CreateSession()
 	if err != nil {
 		return err
