@@ -5,6 +5,10 @@ sudo: false
 go:
   - 1.6
 
+branches:
+  only:
+    - master
+
 addons:
   apt:
     packages:
