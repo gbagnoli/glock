@@ -5,6 +5,11 @@ sudo: false
 go:
   - 1.6
 
+addons:
+  apt:
+    packages:
+      - oracle-java8-installer
+
 cache:
   directories:
     - $HOME/.ccm/repository
@@ -20,7 +25,6 @@ env:
     - CASSANDRA=2.2.7
     - CASSANDRA=3.0.8
     - CASSANDRA=3.7
-
 
 services:
   - redis-server
@@ -38,7 +42,7 @@ script:
   - set -e
   - go vet .
   - golint .
-  - PATH="$PATH:$HOME/.local/bin" bash integration.sh "$CASSANDRA"
+  - JAVA_HOME="/usr/lib/jvm/java-8-oracle" PATH="/usr/lib/jvm/java-8-oracle/jre/bin/:$PATH:$HOME/.local/bin" bash integration.sh "$CASSANDRA"
 
 notifications:
   - email: false
