@@ -12,7 +12,7 @@ VERSION=""
 
 case $DB in
   "memory")
-    TAGS=''
+    TAGS='memory'
     ;;
 
   "redis")
