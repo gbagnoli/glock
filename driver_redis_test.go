@@ -11,18 +11,12 @@ import (
 	"github.com/stvp/tempredis"
 )
 
-const port = "12345"
-
 var namespace = flag.String("namspace", "glock:tests", "Redis keys namespace")
 var server *tempredis.Server
 
 func TestMain(m *testing.M) {
 	var err error
-	config := map[string]string{
-		"port": port,
-		"bind": "127.0.0.1",
-	}
-	server, err = tempredis.Start(config)
+	server, err = tempredis.Start(nil)
 	if err != nil {
 		panic(err)
 	}
@@ -33,8 +27,8 @@ func TestMain(m *testing.M) {
 
 func redisClient(t *testing.T) Client {
 	opts := RedisOptions{
-		Network:   "tcp",
-		Address:   "127.0.0.1" + ":" + port,
+		Network:   "unix",
+		Address:   server.Socket(),
 		Namespace: *namespace,
 	}
 	c1, err := NewRedisClient(opts)
