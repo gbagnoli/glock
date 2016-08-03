@@ -9,6 +9,7 @@ fi
 
 DB="$1"
 VERSION=""
+CASSANDRA_WAIT_TIME="${CASSANDRA_WAIT_TIME:-10}"
 
 case $DB in
   "memory")
@@ -50,19 +51,32 @@ if [ ! -z "$VERSION" ]; then
   set -e
 
   function cleanup {
-    $ccm remove test || true
+    $ccm remove test &>/dev/null || true
   }
 
   cleanup
-  $ccm create test -v "$VERSION" -n 1 -d --vnodes
+  echo "Creating cassandra cluster with version $VERSION"
+  $ccm create test -v "$VERSION" -n 1 -d --vnodes &>/dev/null
   trap cleanup EXIT
 
-  sleep 1
-  $ccm list
+  echo "Starting cluster"
   $ccm start
-  $ccm status
-  $ccm node1 nodetool status
+
+  echo -n "Waiting for cassandra to settle "
+  for (( i=0; i < CASSANDRA_WAIT_TIME; i++ )); do
+    set +e
+    echo -n "."
+    $ccm node1 cqlsh -e 'DESCRIBE KEYSPACES' &>/dev/null
+    [ $? -eq 0 ] && break
+    sleep 1
+  done
+  set -e
+  if [ "$i" -eq "$CASSANDRA_WAIT_TIME" ]; then
+    echo >&2 "Cassandra failed to start in $CASSANDRA_WAIT_TIME seconds"
+    exit 1
+  fi
+  echo " ok"
 fi
 
 go test -v --tags="$TAGS"
-
+exit $?
