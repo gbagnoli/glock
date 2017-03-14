@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var host = flag.String("host", "localhost", "Cassandra host")
+var host = flag.String("host", "127.0.0.1", "Cassandra host")
 var keyspace = flag.String("keyspace", "glock_test", "Cassandra keyspace")
 var username = flag.String("username", "", "Username to use when connecting")
 var password = flag.String("password", "", "Password to use when connecting")
