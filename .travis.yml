@@ -3,7 +3,6 @@ language: go
 sudo: false
 
 go:
-  - 1.6
   - 1.7
   - 1.8
 
@@ -29,11 +28,10 @@ env:
   matrix:
     - DB=memory
     - DB=redis
-    - DB=cassandra:2.0.9
-    - DB=cassandra:2.1.15
-    - DB=cassandra:2.2.7
-    - DB=cassandra:3.0.8
-    - DB=cassandra:3.7
+    - DB=cassandra:2.1.17
+    - DB=cassandra:2.2.9
+    - DB=cassandra:3.0.12
+    - DB=cassandra:3.10
 
 services:
   - redis-server
