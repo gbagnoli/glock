@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"log"
 	"time"
+
+	"github.com/aristanetworks/goarista/monotime"
 )
 
 // LockManager manages all the locks for a single client
@@ -121,7 +123,7 @@ func (m *LockManager) Acquire(lockName string, opts AcquireOptions) error {
 	}
 
 	for {
-		init := time.Now()
+		init := monotime.Now()
 		err := m.acquire(lockName, opts)
 		if err == nil {
 			return nil
@@ -140,7 +142,7 @@ func (m *LockManager) Acquire(lockName string, opts AcquireOptions) error {
 			return ErrLockHeldByOtherClient
 		}
 
-		wait := info.TTL - time.Since(init)
+		wait := info.TTL - monotime.Since(init)
 		if waited+wait > opts.MaxWait {
 			wait = opts.MaxWait - waited
 		}
