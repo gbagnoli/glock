@@ -31,7 +31,7 @@ env:
     - DB=cassandra:2.1.18
     - DB=cassandra:2.2.10
     - DB=cassandra:3.0.14
-    - DB=cassandra:3.11
+    - DB=cassandra:3.11.0
 
 services:
   - redis-server
