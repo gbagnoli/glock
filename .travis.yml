@@ -28,10 +28,10 @@ env:
   matrix:
     - DB=memory
     - DB=redis
-    - DB=cassandra:2.1.17
-    - DB=cassandra:2.2.9
-    - DB=cassandra:3.0.12
-    - DB=cassandra:3.10
+    - DB=cassandra:2.1.18
+    - DB=cassandra:2.2.10
+    - DB=cassandra:3.0.14
+    - DB=cassandra:3.11
 
 services:
   - redis-server
